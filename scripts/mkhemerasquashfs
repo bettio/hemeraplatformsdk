@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# Arguments
+ROOT_PACKAGE_DIR=$1
+PACKAGE_FILENAME=$2
+DEVICEKEY=$3
+
+echo "---- Creating squashfs-based hemera package"
+# Create squashfs (LZO compressed)
+mksquashfs ${ROOT_PACKAGE_DIR} ${PACKAGE_FILENAME}.unencrypted -comp lzo ${ADDITIONAL_MKSQUASHFS_ARGS}
+MKSQUASHFS_RET=$?
+if [ "${MKSQUASHFS_RET}" != "0" ]; then
+    echo "---- Creating squashfs failed with ${MKSQUASHFS_RET}"
+    exit ${MKSQUASHFS_RET}
+fi
+
+if [ "${DEVICEKEY}" != "" ]; then
+    echo "---- Encrypted image: creating base image"
+    dd if=/dev/full of=${PACKAGE_FILENAME} bs=1M count=$(( $(stat -c%s ${PACKAGE_FILENAME}.unencrypted) / (1024*1024) + 12 ))
+    DD_RET=$?
+    if [ "${DD_RET}" != "0" ]; then
+        echo "---- Creating base image failed with ${DD_RET}"
+        exit ${DD_RET}
+    fi
+
+    # Encrypt
+    echo "---- Encrypted image: performing encryption"
+    losetup /dev/loop7 ${PACKAGE_FILENAME}
+    LOSETUP_RET=$?
+    if [ "${LOSETUP_RET}" != "0" ]; then
+        echo "---- Setting up loop device failed with ${LOSETUP_RET}"
+        exit ${LOSETUP_RET}
+    fi
+    echo $DEVICEKEY | cryptsetup -q luksFormat /dev/loop7
+    echo $DEVICEKEY | cryptsetup -q open --type luks /dev/loop7 hemerapkg
+    CRYPTSETUP_RET=$?
+    if [ "${CRYPTSETUP_RET}" != "0" ]; then
+        echo "---- cryptsetup failed with ${CRYPTSETUP_RET}"
+        cryptsetup close hemerapkg
+        losetup -d /dev/loop7
+        exit ${CRYPTSETUP_RET}
+    fi
+
+    dd if=${PACKAGE_FILENAME}.unencrypted of=/dev/mapper/hemerapkg bs=8192
+    DD_RET=$?
+    if [ "${DD_RET}" != "0" ]; then
+        echo "---- Encrypting squashfs failed with ${DD_RET}"
+        cryptsetup close hemerapkg
+        losetup -d /dev/loop7
+        exit ${DD_RET}
+    fi
+
+    cryptsetup close hemerapkg
+    CRYPTSETUP_RET=$?
+    losetup -d /dev/loop7
+
+    if [ "${CRYPTSETUP_RET}" != "0" ]; then
+        echo "---- cryptsetup failed with ${CRYPTSETUP_RET}"
+        exit ${CRYPTSETUP_RET}
+    fi
+
+    rm ${PACKAGE_FILENAME}.unencrypted
+
+    # Done
+    echo "---- Encrypted package: ${PACKAGE_FILENAME} ready"
+else
+    echo "---- Squash package: skipping encryption. WARNING: This is not an usual behavior!"
+    # Move squashfs
+    mv ${PACKAGE_FILENAME}.unencrypted ${PACKAGE_FILENAME}
+fi
+
+echo "---- Squash package generated successfully"
+
+exit 0

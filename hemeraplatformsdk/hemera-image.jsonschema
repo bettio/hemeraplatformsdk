@@ -1,0 +1,473 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "title": "Hemera Image Metadata",
+    "description": "A definition of a Hemera image",
+    "type": "object",
+    "allOf": [
+        {
+            "properties": {
+                "installer": {
+                    "allOf": [
+                        {
+                            "oneOf": [
+                                { "$ref": "#/definitions/rawImage" },
+                                { "$ref": "#/definitions/fsImage" },
+                                { "$ref": "#/definitions/squashImage" }
+                            ]
+                        },
+                        {
+                            "properties": {
+                                "additional_actions": {
+                                    "type": "array",
+                                    "items": {
+                                        "oneOf": [
+                                            { "$ref": "#/definitions/flashKobsUBoot" },
+                                            { "$ref": "#/definitions/setUBootEnvironment" }
+                                        ]
+                                    },
+                                    "minItems": 1,
+                                    "uniqueItems": true
+                                },
+                                "scripts": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "path": {"type": "string"},
+                                            "message": {"type": "string"}
+                                        }
+                                    },
+                                    "minItems": 1,
+                                    "uniqueItems": true
+                                },
+                                "recovery_partition": { "$ref": "#/definitions/partitionDevice" }
+                            }
+                        }
+                    ]
+                },
+                "upload": {
+                    "type": "array",
+                    "items": {
+                        "oneOf": [
+                            { "$ref": "#/definitions/imageStoreUploader" },
+                            { "$ref": "#/definitions/imageStoreV2Uploader" },
+                            { "$ref": "#/definitions/scpUploader" },
+                            { "$ref": "#/definitions/scpPasswordUploader" },
+                            { "$ref": "#/definitions/scpPrivateKeyUploader" }
+                        ]
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true
+                },
+                "crypto": {
+                    "type": "object",
+                    "properties": {
+                        "key": {"type": "string"},
+                        "additional_keys": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "minItems": 1,
+                            "maxItems": 7,
+                            "uniqueItems": true
+                        },
+                        "certificate": {"type": "string"},
+                        "privatekey": {"type": "string"},
+                        "sshkey": {"type": "string"}
+                    }
+                }
+            }
+        },
+        {
+            "properties": {
+                "image": {
+                    "oneOf": [
+                        { "$ref": "#/definitions/rawImage" },
+                        { "$ref": "#/definitions/fsImage" },
+                        { "$ref": "#/definitions/squashImage" },
+                        { "$ref": "#/definitions/vmImage" }
+                    ],
+                    "required": ["arch", "name"]
+                }
+            },
+            "required": ["image"]
+        }
+    ],
+    "definitions": {
+        "uploader": {
+            "properties": {
+                "host": {"type": "string"}
+            },
+            "required": ["host"]
+        },
+        "imageStoreUploader": {
+            "allOf": [
+                { "$ref": "#/definitions/uploader" },
+                {
+                    "properties": {
+                        "type": { "enum": [ "image_store" ] },
+                        "api_key": {"type": "string"},
+                        "verify_ssl": {"type": "boolean"}
+                    },
+                    "required": ["type", "api_key"]
+                }
+            ]
+        },
+        "imageStoreV2Uploader": {
+            "allOf": [
+                { "$ref": "#/definitions/uploader" },
+                {
+                    "properties": {
+                        "type": { "enum": [ "image_store_v2" ] },
+                        "organization": {"type": "string"},
+                        "api_key": {"type": "string"},
+                        "verify_ssl": {"type": "boolean"}
+                    },
+                    "required": ["type", "organization", "api_key"]
+                }
+            ]
+        },
+        "scpUploader": {
+            "allOf": [
+                { "$ref": "#/definitions/uploader" },
+                {
+                    "properties": {
+                        "type": { "enum": [ "scp" ] },
+                        "user": {"type": "string"},
+                        "base_upload_path": {"type": "string"}
+                    },
+                    "required": ["type", "user", "base_upload_path"]
+                }
+            ]
+        },
+        "scpPasswordUploader": {
+            "allOf": [
+                { "$ref": "#/definitions/scpUploader" },
+                {
+                    "properties": {
+                        "password": {"type": "string"}
+                    },
+                    "required": ["password"]
+                }
+            ]
+        },
+        "scpPrivateKeyUploader": {
+            "allOf": [
+                { "$ref": "#/definitions/scpUploader" },
+                {
+                    "properties": {
+                        "privatekey": {"type": "string"},
+                        "privatekey_password": {"type": "string"}
+                    },
+                    "required": ["privatekey"]
+                }
+            ]
+        },
+        "dd": {
+            "properties": {
+                "file": {"type": "string"},
+                "keep_in_image": {"type": "boolean"},
+                "input_offset": {"type": "integer"},
+                "output_offset": {"type": "integer"},
+                "max_file_size": {"type": "integer"}
+            },
+            "required": ["file"]
+        },
+        "partition": {
+            "properties": {
+                "filesystem": {"type": "string"},
+                "device": {"type": "string"},
+                "mountpoint": {"type": "string"},
+                "size": {"type": "integer"},
+                "start_sector": {"type": "integer"},
+                "end_sector": {"type": "integer"},
+                "options": {"type": "string"},
+                "readonly": {"type": "boolean"},
+                "name": {"type": "string"},
+                "label": {"type": "string"},
+                "flash": {"type": "string"},
+                "keep_in_image": {"type": "boolean"},
+                "flags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                    "uniqueItems": true
+                },
+                "partition_type": {"type": "string"}
+            }
+        },
+        "ubiVolume": {
+            "properties": {
+                "mountpoint": {"type": "string"},
+                "name": {"type": "string"},
+                "options": {"type": "string"},
+                "immutable": {"type": "boolean"},
+                "size": {"type": "integer"}
+            },
+            "required": ["size", "mountpoint"]
+        },
+        "repository": {
+            "properties": {
+                "name": {"type": "string"},
+                "host": {"type": "string"},
+                "repository_name": {"type": "string"},
+                "debug_info": {"type": "boolean"},
+                "save": {"type": "boolean"},
+                "priority": {"type": "integer"},
+                "cost": {"type": "integer"}
+            },
+            "required": ["name"]
+        },
+        "baseDevice": {
+            "properties": {
+                "install_device": {"type": "string"},
+                "flash_during_install": {"type": "boolean"},
+                "flash_during_recovery": {"type": "boolean"}
+            },
+            "required": ["type"]
+        },
+        "rawDevice": {
+            "allOf": [
+                { "$ref": "#/definitions/baseDevice" },
+                {
+                    "properties": {
+                        "type": { "enum": [ "raw", "raw-gpt" ] },
+                        "size": {"type": "integer"},
+                        "dd": { "$ref": "#/definitions/dd" },
+                        "partitions": {
+                            "type": "array",
+                            "items": { "$ref": "#/definitions/partition" },
+                            "minItems": 1,
+                            "uniqueItems": true
+                        }
+                    },
+                    "required": ["type"]
+                }
+            ]
+        },
+        "partitionDevice": {
+            "allOf": [
+                { "$ref": "#/definitions/partition" },
+                { "$ref": "#/definitions/baseDevice" },
+                {
+                    "properties": {
+                        "type": { "enum": [ "partition", "partition-gpt",
+                                            "partition-recovery", "partition-recovery-gpt" ] }
+                    },
+                    "required": ["type"]
+                }
+            ]
+        },
+        "ubiDevice": {
+            "allOf": [
+                { "$ref": "#/definitions/baseDevice" },
+                {
+                    "properties": {
+                        "type": { "enum": [ "ubi" ] },
+                        "mapped_node": {"type": "string"},
+                        "name": {"type": "string"},
+                        "options": {"type": "string"},
+                        "minimum_unit_size": {"type": "integer"},
+                        "logical_eraseblock_size": {"type": "integer"},
+                        "physical_eraseblock_size": {"type": "integer"},
+                        "subpage_size": {"type": "integer"},
+                        "start": {"type": "string"},
+                        "ubinize": {"type": "boolean"},
+                        "volumes": {
+                            "type": "array",
+                            "items": { "$ref": "#/definitions/ubiVolume" },
+                            "minItems": 1,
+                            "uniqueItems": true
+                        }
+                    },
+                    "required": ["type", "mapped_node", "volumes",
+                                 "logical_eraseblock_size", "minimum_unit_size"]
+                }
+            ]
+        },
+        "nandFile": {
+            "allOf": [
+                { "$ref": "#/definitions/baseDevice" },
+                {
+                    "properties": {
+                        "type": { "enum": [ "nand-file" ] },
+                        "file": {"type": "string"},
+                        "keep_in_image": {"type": "boolean"},
+                        "start": {"type": "string"},
+                        "logical_eraseblock_size": {"type": "integer"},
+                        "max_file_size": {"type": "integer"}
+                    },
+                    "required": ["type", "file"]
+                }
+            ]
+        },
+        "baseImage": {
+            "properties": {
+                "arch": {"enum": [ "aarch64", "armv4l", "armv5tel", "armv6l", "armv6hl", "armv7l",
+                                   "armv7hl", "armv7tnhl", "i486", "i586", "i686", "x86_64", "mipsel" ]},
+                "name": {"type": "string"},
+                "group": {"type": "string"},
+                "compress": {"type": "boolean"},
+                "compression_format": {"enum": [ "gz", "xz", "bz2", "zip" ]},
+                "language": {"type": "string"},
+                "keymap": {"type": "string"},
+                "timezone": {"type": "string"},
+                "bootloader": {"type": "string"},
+                "root_password": {"type": "string"},
+                "repositories": {
+                    "type": "array",
+                    "items": { "$ref": "#/definitions/repository" },
+                    "minItems": 1,
+                    "uniqueItems": true
+                },
+                "packages": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                    "uniqueItems": true
+                },
+                "serial_login": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                    "uniqueItems": true
+                },
+                "custom_post_scripts": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                    "uniqueItems": true
+                },
+                "custom_post_nochroot_scripts": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                    "uniqueItems": true
+                },
+                "custom_fstab_entries": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                    "uniqueItems": true
+                }
+            },
+            "required": ["repositories", "packages"]
+        },
+        "rawImage": {
+            "allOf": [
+                { "$ref": "#/definitions/baseImage" },
+                {
+                    "properties": {
+                        "type": { "enum": [ "raw" ] },
+                        "dd": { "$ref": "#/definitions/dd" },
+                        "sector_size": {"type": "integer"},
+                        "devices": {
+                            "type": "array",
+                            "items": {
+                                "oneOf": [
+                                    { "$ref": "#/definitions/rawDevice" },
+                                    { "$ref": "#/definitions/partitionDevice" },
+                                    { "$ref": "#/definitions/ubiDevice" },
+                                    { "$ref": "#/definitions/nandFile" }
+                                ]
+                            },
+                            "minItems": 1,
+                            "uniqueItems": true
+                        }
+                    },
+                    "required": ["type", "devices"]
+                }
+            ]
+        },
+        "fsImage": {
+            "allOf": [
+                { "$ref": "#/definitions/baseImage" },
+                {
+                    "properties": {
+                        "type": { "enum": [ "fs" ] }
+                    },
+                    "required": ["type"]
+                }
+            ]
+        },
+        "squashImage": {
+            "allOf": [
+                { "$ref": "#/definitions/baseImage" },
+                {
+                    "properties": {
+                        "type": { "enum": [ "squash" ] },
+                        "boot_files": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "minItems": 1,
+                            "uniqueItems": true
+                        }
+                    },
+                    "required": ["type"]
+                }
+            ]
+        },
+        "vmImage": {
+            "allOf": [
+                { "$ref": "#/definitions/baseImage" },
+                {
+                    "properties": {
+                        "type": { "enum": [ "vm" ] },
+                        "embedded_images": {
+                            "type": "array",
+                            "items": { "$ref": "#/definitions/fsImage" },
+                            "minItems": 1,
+                            "uniqueItems": true
+                        },
+                        "partitions": {
+                            "type": "array",
+                            "items": { "$ref": "#/definitions/partition" },
+                            "minItems": 1,
+                            "uniqueItems": true
+                        },
+                        "init": {"type": "boolean"}
+                    },
+                    "required": ["type"]
+                }
+            ]
+        },
+
+        "flashKobsUBoot": {
+            "allOf": [
+                {
+                    "properties": {
+                        "type": { "enum": [ "flash_kobs_u-boot" ] },
+                        "logical_eraseblock_size": {"type": "integer"},
+                        "search_exponent": {"type": "integer"},
+                        "spl_device": {"type": "string"},
+                        "u-boot_device": {"type": "string"},
+                        "dtb_device": {"type": "string"},
+                        "spl_file": {"type": "string"},
+                        "spl_start": {"type": "string"},
+                        "u-boot_file": {"type": "string"},
+                        "u-boot_start": {"type": "string"},
+                        "dtb_file": {"type": "string"},
+                        "dtb_start": {"type": "string"}
+                    },
+                    "required": ["type", "u-boot_device", "u-boot_file"]
+                }
+            ]
+        },
+        "setUBootEnvironment": {
+            "allOf": [
+                {
+                    "properties": {
+                        "type": { "enum": [ "set_u-boot_environment" ] },
+                        "environment": {
+                            "type": "object",
+                            "patternProperties": {
+                               "[a-zA-Z0-9-_\\.]*": { "type": "string" }
+                            },
+                            "minProperties": 1
+                        }
+                    },
+                    "required": ["type", "environment"]
+                }
+            ]
+        }
+    }
+}

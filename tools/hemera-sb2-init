@@ -1,0 +1,8 @@
+#!/bin/bash
+ARCH="${1}"
+
+cd /srv/hemera/targets/Hemera-${ARCH}/
+sb2-init -d -L "--sysroot=/" -C "--sysroot=/" -c /usr/bin/qemu-arm-dynamic -m sdk-build -n -N -t / Hemera-${ARCH} /opt/cross/bin/${ARCH}-meego-linux-gnueabi-gcc
+echo -n "${ARCH}-meego-linux" > etc/rpm/platform
+sb2 -t Hemera-${ARCH} -m sdk-install -R rpm --rebuilddb
+sb2 -t Hemera-${ARCH} -m sdk-install -R zypper ref --force
